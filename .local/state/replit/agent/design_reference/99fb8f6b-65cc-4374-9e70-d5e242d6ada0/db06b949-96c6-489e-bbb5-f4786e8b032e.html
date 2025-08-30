@@ -1,0 +1,812 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSCE Simulator - Medical Training Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                borderRadius: {
+                    lg: "var(--radius)",
+                    md: "calc(var(--radius) - 2px)",
+                    sm: "calc(var(--radius) - 4px)",
+                },
+                colors: {
+                    background: "var(--background)",
+                    foreground: "var(--foreground)",
+                    card: {
+                        DEFAULT: "var(--card)",
+                        foreground: "var(--card-foreground)",
+                    },
+                    primary: {
+                        DEFAULT: "var(--primary)",
+                        foreground: "var(--primary-foreground)",
+                    },
+                    secondary: {
+                        DEFAULT: "var(--secondary)",
+                        foreground: "var(--secondary-foreground)",
+                    },
+                    muted: {
+                        DEFAULT: "var(--muted)",
+                        foreground: "var(--muted-foreground)",
+                    },
+                    accent: {
+                        DEFAULT: "var(--accent)",
+                        foreground: "var(--accent-foreground)",
+                    },
+                    destructive: {
+                        DEFAULT: "var(--destructive)",
+                        foreground: "var(--destructive-foreground)",
+                    },
+                    border: "var(--border)",
+                    input: "var(--input)",
+                    ring: "var(--ring)",
+                    success: "var(--success)",
+                    warning: "var(--warning)",
+                }
+            }
+        }
+    };
+    </script>
+    <style>
+        :root {
+            --background: hsl(210 40% 98%);
+            --foreground: hsl(222.2 84% 4.9%);
+            --card: hsl(0 0% 100%);
+            --card-foreground: hsl(222.2 84% 4.9%);
+            --primary: hsl(217.2 91% 59%);
+            --primary-foreground: hsl(210 40% 98%);
+            --secondary: hsl(214.3 31.8% 58.8%);
+            --secondary-foreground: hsl(222.2 84% 4.9%);
+            --muted: hsl(210 40% 96%);
+            --muted-foreground: hsl(215.4 16.3% 56.9%);
+            --accent: hsl(210 40% 96%);
+            --accent-foreground: hsl(222.2 84% 4.9%);
+            --destructive: hsl(0 84.2% 60.2%);
+            --destructive-foreground: hsl(210 40% 98%);
+            --border: hsl(214.3 31.8% 91.4%);
+            --input: hsl(214.3 31.8% 91.4%);
+            --ring: hsl(217.2 91% 59%);
+            --success: hsl(142.1 76.2% 36.3%);
+            --warning: hsl(38 92% 50%);
+            --radius: 0.5rem;
+            --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        
+        body {
+            font-family: var(--font-sans);
+        }
+        
+        .chat-bubble-user {
+            background: linear-gradient(135deg, hsl(217.2 91% 59%) 0%, hsl(217.2 91% 65%) 100%);
+        }
+        
+        .chat-bubble-ai {
+            background: linear-gradient(135deg, hsl(210 40% 96%) 0%, hsl(210 40% 98%) 100%);
+        }
+        
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+        
+        .body-diagram {
+            transition: all 0.2s ease;
+        }
+        
+        .body-diagram:hover {
+            transform: scale(1.02);
+        }
+        
+        .stage-indicator {
+            position: relative;
+        }
+        
+        .stage-indicator::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -20px;
+            width: 40px;
+            height: 2px;
+            background: hsl(214.3 31.8% 91.4%);
+            transform: translateY(-50%);
+        }
+        
+        .stage-indicator:last-child::after {
+            display: none;
+        }
+        
+        .test-category {
+            transition: all 0.2s ease;
+        }
+        
+        .test-category:hover {
+            background: hsl(210 40% 94%);
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-background text-foreground min-h-screen">
+    <!-- @COMPONENT: OSCESimulator [main application container] -->
+    <div class="flex h-screen bg-background">
+        <!-- Left Sidebar - Navigation & Progress -->
+        <!-- @COMPONENT: Sidebar [navigation and progress tracking] -->
+        <div class="w-80 bg-card border-r border-border flex flex-col">
+            <!-- Header -->
+            <div class="p-6 border-b border-border">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                        <i class="fas fa-stethoscope text-primary-foreground text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-semibold text-foreground">OSCE Simulator</h1>
+                        <p class="text-sm text-muted-foreground">Medical Training Platform</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timer & Session Info -->
+            <div class="p-6 border-b border-border bg-muted/30">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-medium text-foreground">Session Timer</h3>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 relative">
+                            <svg class="w-8 h-8 progress-ring" viewBox="0 0 36 36">
+                                <path class="text-muted stroke-current" stroke-width="3" fill="none" d="M18 2.0845 A 15.9155 15.9155 0 0 1 18 33.9155 A 15.9155 15.9155 0 0 1 18 2.0845"/>
+                                <path class="text-primary stroke-current" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="75, 100" d="M18 2.0845 A 15.9155 15.9155 0 0 1 18 33.9155 A 15.9155 15.9155 0 0 1 18 2.0845"/>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-mono text-foreground">15:30</span>
+                    </div>
+                </div>
+                <div class="text-sm text-muted-foreground">
+                    <div data-mock="true">Case: Chest Pain (ID: CP-001)</div>
+                    <div data-mock="true">Patient: Sarah Johnson, 45F</div>
+                </div>
+            </div>
+
+            <!-- OSCE Stages Progress -->
+            <div class="p-6 flex-1 overflow-y-auto">
+                <h3 class="font-medium text-foreground mb-4">OSCE Progress</h3>
+                <div class="space-y-3">
+                    <!-- @MAP: osceStages.map(stage => ( -->
+                    <div class="flex items-center space-x-3 stage-indicator">
+                        <div class="w-8 h-8 rounded-full bg-success flex items-center justify-center">
+                            <i class="fas fa-check text-white text-xs"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-foreground">History Taking</div>
+                            <div class="text-xs text-muted-foreground">Completed • 5:23</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-3 stage-indicator">
+                        <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                            <i class="fas fa-stethoscope text-primary-foreground text-xs"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-foreground">Physical Examination</div>
+                            <div class="text-xs text-primary">In Progress • 3:15</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-3 stage-indicator">
+                        <div class="w-8 h-8 rounded-full bg-muted border-2 border-border flex items-center justify-center">
+                            <i class="fas fa-vial text-muted-foreground text-xs"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-muted-foreground">Laboratory Tests</div>
+                            <div class="text-xs text-muted-foreground">Pending</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-3 stage-indicator">
+                        <div class="w-8 h-8 rounded-full bg-muted border-2 border-border flex items-center justify-center">
+                            <i class="fas fa-x-ray text-muted-foreground text-xs"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-muted-foreground">Imaging Studies</div>
+                            <div class="text-xs text-muted-foreground">Pending</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-3 stage-indicator">
+                        <div class="w-8 h-8 rounded-full bg-muted border-2 border-border flex items-center justify-center">
+                            <i class="fas fa-clipboard-list text-muted-foreground text-xs"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-muted-foreground">Diagnosis</div>
+                            <div class="text-xs text-muted-foreground">Pending</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-full bg-muted border-2 border-border flex items-center justify-center">
+                            <i class="fas fa-file-medical text-muted-foreground text-xs"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-muted-foreground">Treatment Plan</div>
+                            <div class="text-xs text-muted-foreground">Pending</div>
+                        </div>
+                    </div>
+                    <!-- @END_MAP )) -->
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="p-6 border-t border-border">
+                <div class="space-y-2">
+                    <button class="w-full px-4 py-2 bg-secondary text-secondary-foreground rounded-md text-sm font-medium hover:bg-secondary/80 transition-colors" data-event="click:pauseSession">
+                        <i class="fas fa-pause mr-2"></i>Pause Session
+                    </button>
+                    <button class="w-full px-4 py-2 border border-border text-foreground rounded-md text-sm font-medium hover:bg-accent transition-colors" data-event="click:saveProgress">
+                        <i class="fas fa-save mr-2"></i>Save Progress
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: Sidebar -->
+
+        <!-- Main Content Area -->
+        <!-- @COMPONENT: MainContent [primary workspace for current OSCE stage] -->
+        <div class="flex-1 flex flex-col">
+            <!-- Top Navigation Bar -->
+            <div class="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+                <div class="flex items-center space-x-4">
+                    <h2 class="text-lg font-semibold text-foreground">Physical Examination</h2>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">Current Stage</span>
+                        <span class="text-sm text-muted-foreground">2 of 6</span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button class="px-3 py-1 text-sm text-muted-foreground hover:text-foreground transition-colors" data-event="click:showHints">
+                        <i class="fas fa-lightbulb mr-1"></i>Hints
+                    </button>
+                    <button class="px-3 py-1 text-sm text-muted-foreground hover:text-foreground transition-colors" data-event="click:showNotes">
+                        <i class="fas fa-sticky-note mr-1"></i>Notes
+                    </button>
+                    <button class="px-4 py-2 bg-success text-white rounded-md text-sm font-medium hover:bg-success/90 transition-colors" data-event="click:completeStage">
+                        Complete Stage
+                    </button>
+                </div>
+            </div>
+
+            <!-- Physical Examination Interface -->
+            <div class="flex-1 flex">
+                <!-- Body Diagram Section -->
+                <div class="flex-1 p-6 bg-background">
+                    <div class="max-w-4xl mx-auto">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <!-- Interactive Body Diagram -->
+                            <div class="bg-card rounded-lg border border-border p-6">
+                                <h3 class="font-semibold text-foreground mb-4 flex items-center">
+                                    <i class="fas fa-male mr-2 text-primary"></i>
+                                    Interactive Body Examination
+                                </h3>
+                                <div class="relative">
+                                    <!-- Human body silhouette with interactive areas -->
+                                    <!-- @FUNCTIONALITY: This should be an interactive SVG or image map for body parts -->
+                                    <!-- A medical diagram showing front view of human body with clickable regions -->
+                                    <div class="w-full h-96 bg-muted rounded-lg border-2 border-dashed border-border flex items-center justify-center body-diagram cursor-pointer hover:border-primary">
+                                        <div class="text-center">
+                                            <i class="fas fa-male text-6xl text-muted-foreground mb-3"></i>
+                                            <p class="text-sm text-muted-foreground">Click on body parts to examine</p>
+                                            <div class="mt-4 grid grid-cols-2 gap-2 text-xs">
+                                                <div class="p-2 bg-background rounded border cursor-pointer hover:bg-accent" data-event="click:examineHead">Head & Neck</div>
+                                                <div class="p-2 bg-background rounded border cursor-pointer hover:bg-accent" data-event="click:examineChest">Chest</div>
+                                                <div class="p-2 bg-background rounded border cursor-pointer hover:bg-accent" data-event="click:examineAbdomen">Abdomen</div>
+                                                <div class="p-2 bg-background rounded border cursor-pointer hover:bg-accent" data-event="click:examineExtremities">Extremities</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Examination Tools & Findings -->
+                            <div class="space-y-6">
+                                <!-- Available Tools -->
+                                <div class="bg-card rounded-lg border border-border p-6">
+                                    <h3 class="font-semibold text-foreground mb-4 flex items-center">
+                                        <i class="fas fa-toolbox mr-2 text-primary"></i>
+                                        Examination Tools
+                                    </h3>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <button class="p-3 border border-border rounded-lg text-center hover:bg-accent transition-colors" data-event="click:useStethoscope">
+                                            <i class="fas fa-stethoscope text-primary mb-2 block text-lg"></i>
+                                            <span class="text-xs font-medium">Stethoscope</span>
+                                        </button>
+                                        <button class="p-3 border border-border rounded-lg text-center hover:bg-accent transition-colors" data-event="click:useOphthalmoscope">
+                                            <i class="fas fa-eye text-primary mb-2 block text-lg"></i>
+                                            <span class="text-xs font-medium">Ophthalmoscope</span>
+                                        </button>
+                                        <button class="p-3 border border-border rounded-lg text-center hover:bg-accent transition-colors" data-event="click:useOtoscope">
+                                            <i class="fas fa-assistive-listening-systems text-primary mb-2 block text-lg"></i>
+                                            <span class="text-xs font-medium">Otoscope</span>
+                                        </button>
+                                        <button class="p-3 border border-border rounded-lg text-center hover:bg-accent transition-colors" data-event="click:useReflexHammer">
+                                            <i class="fas fa-hammer text-primary mb-2 block text-lg"></i>
+                                            <span class="text-xs font-medium">Reflex Hammer</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Current Findings -->
+                                <div class="bg-card rounded-lg border border-border p-6">
+                                    <h3 class="font-semibold text-foreground mb-4 flex items-center">
+                                        <i class="fas fa-clipboard-list mr-2 text-primary"></i>
+                                        Examination Findings
+                                    </h3>
+                                    <div class="space-y-3">
+                                        <div class="p-3 bg-muted rounded-lg">
+                                            <div class="flex items-start justify-between">
+                                                <div>
+                                                    <div class="font-medium text-sm text-foreground" data-mock="true">Cardiovascular</div>
+                                                    <div class="text-xs text-muted-foreground" data-mock="true">Regular rate and rhythm, no murmurs</div>
+                                                </div>
+                                                <span class="text-xs text-success">Normal</span>
+                                            </div>
+                                        </div>
+                                        <div class="p-3 bg-muted rounded-lg">
+                                            <div class="flex items-start justify-between">
+                                                <div>
+                                                    <div class="font-medium text-sm text-foreground" data-mock="true">Respiratory</div>
+                                                    <div class="text-xs text-muted-foreground" data-mock="true">Clear breath sounds bilaterally</div>
+                                                </div>
+                                                <span class="text-xs text-success">Normal</span>
+                                            </div>
+                                        </div>
+                                        <div class="p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                                            <div class="flex items-start justify-between">
+                                                <div>
+                                                    <div class="font-medium text-sm text-foreground" data-mock="true">Abdomen</div>
+                                                    <div class="text-xs text-muted-foreground" data-mock="true">Tenderness in RUQ, Murphy's sign positive</div>
+                                                </div>
+                                                <span class="text-xs text-warning">Abnormal</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Examination Actions -->
+                        <div class="mt-8 bg-card rounded-lg border border-border p-6">
+                            <h3 class="font-semibold text-foreground mb-4">Quick Examination Actions</h3>
+                            <div class="flex flex-wrap gap-2">
+                                <button class="px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90 transition-colors" data-event="click:performInspection">
+                                    <i class="fas fa-search mr-1"></i>Inspection
+                                </button>
+                                <button class="px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90 transition-colors" data-event="click:performPalpation">
+                                    <i class="fas fa-hand-paper mr-1"></i>Palpation
+                                </button>
+                                <button class="px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90 transition-colors" data-event="click:performPercussion">
+                                    <i class="fas fa-hand-fist mr-1"></i>Percussion
+                                </button>
+                                <button class="px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90 transition-colors" data-event="click:performAuscultation">
+                                    <i class="fas fa-stethoscope mr-1"></i>Auscultation
+                                </button>
+                                <button class="px-3 py-2 bg-secondary text-secondary-foreground rounded-md text-sm hover:bg-secondary/80 transition-colors" data-event="click:recordFinding">
+                                    <i class="fas fa-plus mr-1"></i>Record Finding
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: MainContent -->
+
+        <!-- Right Panel - Patient Info & Chat -->
+        <!-- @COMPONENT: RightPanel [patient information and AI chat interface] -->
+        <div class="w-96 bg-card border-l border-border flex flex-col">
+            <!-- Patient Information -->
+            <div class="p-6 border-b border-border">
+                <div class="flex items-start space-x-4">
+                    <!-- Patient avatar placeholder -->
+                    <div class="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+                        <i class="fas fa-user text-muted-foreground text-xl"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-foreground" data-mock="true">Sarah Johnson</h3>
+                        <div class="text-sm text-muted-foreground space-y-1" data-mock="true">
+                            <div>45 years old, Female</div>
+                            <div>DOB: 03/15/1979</div>
+                            <div>MRN: 12345678</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Vital Signs -->
+                <div class="mt-4 p-3 bg-muted rounded-lg">
+                    <h4 class="font-medium text-sm text-foreground mb-2">Vital Signs</h4>
+                    <div class="grid grid-cols-2 gap-2 text-xs" data-mock="true">
+                        <div>BP: 138/88</div>
+                        <div>HR: 92 bpm</div>
+                        <div>Temp: 98.6°F</div>
+                        <div>RR: 18/min</div>
+                        <div>O2 Sat: 98%</div>
+                        <div>BMI: 26.4</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Patient Chat Interface -->
+            <div class="flex-1 flex flex-col">
+                <div class="p-4 border-b border-border bg-muted/30">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-3 h-3 bg-success rounded-full"></div>
+                        <span class="text-sm font-medium text-foreground">AI Patient Available</span>
+                        <i class="fas fa-robot text-primary text-sm"></i>
+                    </div>
+                </div>
+
+                <!-- Chat Messages -->
+                <div class="flex-1 p-4 overflow-y-auto space-y-4">
+                    <!-- AI Patient Message -->
+                    <div class="flex items-start space-x-3">
+                        <div class="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-user text-muted-foreground text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="chat-bubble-ai text-foreground p-3 rounded-lg border border-border max-w-xs">
+                                <p class="text-sm" data-mock="true">Hello doctor. I've been having this chest pain for the past 2 days. It's really worrying me.</p>
+                            </div>
+                            <div class="text-xs text-muted-foreground mt-1">AI Patient • 2 min ago</div>
+                        </div>
+                    </div>
+
+                    <!-- Student Message -->
+                    <div class="flex items-start space-x-3 flex-row-reverse">
+                        <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-user-md text-primary-foreground text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="chat-bubble-user text-primary-foreground p-3 rounded-lg max-w-xs ml-auto">
+                                <p class="text-sm" data-mock="true">Can you describe the chest pain? Where exactly is it located?</p>
+                            </div>
+                            <div class="text-xs text-muted-foreground mt-1 text-right">You • 1 min ago</div>
+                        </div>
+                    </div>
+
+                    <!-- AI Patient Response -->
+                    <div class="flex items-start space-x-3">
+                        <div class="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-user text-muted-foreground text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="chat-bubble-ai text-foreground p-3 rounded-lg border border-border max-w-xs">
+                                <p class="text-sm" data-mock="true">It's in the center of my chest, here <em>*points to sternum*</em>. It's a sharp, stabbing pain that gets worse when I take deep breaths.</p>
+                            </div>
+                            <div class="text-xs text-muted-foreground mt-1">AI Patient • Just now</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Input -->
+                <div class="p-4 border-t border-border">
+                    <div class="flex space-x-2">
+                        <input 
+                            type="text" 
+                            placeholder="Ask the patient a question..." 
+                            class="flex-1 px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                            data-implementation="Should integrate with OpenAI API for realistic responses"
+                        />
+                        <button class="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors" data-event="click:sendMessage">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Quick Questions -->
+                    <div class="mt-3 space-y-1">
+                        <div class="text-xs text-muted-foreground mb-2">Quick Questions:</div>
+                        <button class="block w-full text-left text-xs p-2 bg-muted hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors" data-event="click:askQuickQuestion" data-mock="true">
+                            "Can you rate your pain from 1-10?"
+                        </button>
+                        <button class="block w-full text-left text-xs p-2 bg-muted hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors" data-event="click:askQuickQuestion" data-mock="true">
+                            "Any family history of heart disease?"
+                        </button>
+                        <button class="block w-full text-left text-xs p-2 bg-muted hover:bg-accent rounded text-muted-foreground hover:text-foreground transition-colors" data-event="click:askQuickQuestion" data-mock="true">
+                            "Are you taking any medications?"
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: RightPanel -->
+    </div>
+    <!-- @END_COMPONENT: OSCESimulator -->
+
+    <!-- Test Ordering Modal (Hidden by default) -->
+    <!-- @COMPONENT: TestOrderingModal [comprehensive test ordering interface] -->
+    <div id="testOrderingModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-card rounded-lg border border-border w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            <div class="p-6 border-b border-border flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-foreground">Order Laboratory Tests & Imaging</h2>
+                <button class="text-muted-foreground hover:text-foreground" data-event="click:closeTestModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="flex h-[600px]">
+                <!-- Test Categories -->
+                <div class="w-1/3 border-r border-border p-4 overflow-y-auto">
+                    <h3 class="font-medium text-foreground mb-4">Test Categories</h3>
+                    <div class="space-y-2">
+                        <div class="test-category p-3 rounded-lg border border-border cursor-pointer">
+                            <div class="font-medium text-sm text-foreground">Hematology</div>
+                            <div class="text-xs text-muted-foreground">CBC, Coagulation studies</div>
+                        </div>
+                        <div class="test-category p-3 rounded-lg border border-border cursor-pointer">
+                            <div class="font-medium text-sm text-foreground">Chemistry</div>
+                            <div class="text-xs text-muted-foreground">Basic metabolic panel, Lipids</div>
+                        </div>
+                        <div class="test-category p-3 rounded-lg border border-border cursor-pointer">
+                            <div class="font-medium text-sm text-foreground">Cardiac Markers</div>
+                            <div class="text-xs text-muted-foreground">Troponins, CK-MB, BNP</div>
+                        </div>
+                        <div class="test-category p-3 rounded-lg border border-border cursor-pointer">
+                            <div class="font-medium text-sm text-foreground">Imaging</div>
+                            <div class="text-xs text-muted-foreground">X-ray, CT, MRI, Echo</div>
+                        </div>
+                        <div class="test-category p-3 rounded-lg border border-border cursor-pointer">
+                            <div class="font-medium text-sm text-foreground">Specialized</div>
+                            <div class="text-xs text-muted-foreground">Cultures, Serology</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Available Tests -->
+                <div class="w-2/3 p-4 overflow-y-auto">
+                    <h3 class="font-medium text-foreground mb-4">Available Tests</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- @MAP: availableTests.map(test => ( -->
+                        <div class="p-3 border border-border rounded-lg hover:bg-accent cursor-pointer" data-event="click:selectTest">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-medium text-sm text-foreground" data-mock="true">Troponin I</div>
+                                    <div class="text-xs text-muted-foreground" data-mock="true">Cardiac marker</div>
+                                    <div class="text-xs text-success mt-1" data-mock="true">Results in 30 min</div>
+                                </div>
+                                <input type="checkbox" class="text-primary focus:ring-primary rounded">
+                            </div>
+                        </div>
+                        
+                        <div class="p-3 border border-border rounded-lg hover:bg-accent cursor-pointer" data-event="click:selectTest">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-medium text-sm text-foreground" data-mock="true">Chest X-ray</div>
+                                    <div class="text-xs text-muted-foreground" data-mock="true">2-view chest imaging</div>
+                                    <div class="text-xs text-success mt-1" data-mock="true">Results in 15 min</div>
+                                </div>
+                                <input type="checkbox" class="text-primary focus:ring-primary rounded">
+                            </div>
+                        </div>
+                        
+                        <div class="p-3 border border-border rounded-lg hover:bg-accent cursor-pointer" data-event="click:selectTest">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-medium text-sm text-foreground" data-mock="true">ECG (12-lead)</div>
+                                    <div class="text-xs text-muted-foreground" data-mock="true">Electrocardiogram</div>
+                                    <div class="text-xs text-success mt-1" data-mock="true">Results in 5 min</div>
+                                </div>
+                                <input type="checkbox" class="text-primary focus:ring-primary rounded">
+                            </div>
+                        </div>
+                        
+                        <div class="p-3 border border-border rounded-lg hover:bg-accent cursor-pointer" data-event="click:selectTest">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-medium text-sm text-foreground" data-mock="true">D-Dimer</div>
+                                    <div class="text-xs text-muted-foreground" data-mock="true">Coagulation marker</div>
+                                    <div class="text-xs text-success mt-1" data-mock="true">Results in 20 min</div>
+                                </div>
+                                <input type="checkbox" class="text-primary focus:ring-primary rounded">
+                            </div>
+                        </div>
+                        <!-- @END_MAP )) -->
+                    </div>
+                    
+                    <div class="mt-6 p-4 bg-muted rounded-lg">
+                        <h4 class="font-medium text-sm text-foreground mb-2">Selected Tests (3)</h4>
+                        <div class="space-y-2" data-mock="true">
+                            <div class="flex items-center justify-between text-sm">
+                                <span>Troponin I</span>
+                                <button class="text-destructive text-xs">Remove</button>
+                            </div>
+                            <div class="flex items-center justify-between text-sm">
+                                <span>Chest X-ray</span>
+                                <button class="text-destructive text-xs">Remove</button>
+                            </div>
+                            <div class="flex items-center justify-between text-sm">
+                                <span>ECG (12-lead)</span>
+                                <button class="text-destructive text-xs">Remove</button>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex space-x-3">
+                            <button class="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors" data-event="click:orderTests">
+                                Order Selected Tests
+                            </button>
+                            <button class="px-4 py-2 border border-border text-foreground rounded-md hover:bg-accent transition-colors" data-event="click:clearSelection">
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: TestOrderingModal -->
+
+    <!-- Diagnosis Interface Modal -->
+    <!-- @COMPONENT: DiagnosisModal [differential diagnosis and final diagnosis selection] -->
+    <div id="diagnosisModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-card rounded-lg border border-border w-full max-w-5xl max-h-[90vh] overflow-hidden">
+            <div class="p-6 border-b border-border flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-foreground">Diagnosis & Differential</h2>
+                <button class="text-muted-foreground hover:text-foreground" data-event="click:closeDiagnosisModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-100px)]">
+                <!-- Clinical Summary -->
+                <div class="bg-muted p-4 rounded-lg">
+                    <h3 class="font-medium text-foreground mb-3">Clinical Summary</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <div class="font-medium text-foreground mb-1">Chief Complaint</div>
+                            <div class="text-muted-foreground" data-mock="true">Chest pain x 2 days</div>
+                        </div>
+                        <div>
+                            <div class="font-medium text-foreground mb-1">Key Findings</div>
+                            <div class="text-muted-foreground" data-mock="true">RUQ tenderness, Murphy's sign +</div>
+                        </div>
+                        <div>
+                            <div class="font-medium text-foreground mb-1">Test Results</div>
+                            <div class="text-muted-foreground" data-mock="true">Troponin I: Normal, ECG: Normal</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Differential Diagnosis -->
+                <div>
+                    <h3 class="font-medium text-foreground mb-4">Differential Diagnosis</h3>
+                    <div class="space-y-3">
+                        <div class="p-4 border border-border rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="font-medium text-foreground" data-mock="true">Acute Cholecystitis</div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-sm text-success">High probability</span>
+                                    <input type="radio" name="primaryDiagnosis" class="text-primary">
+                                </div>
+                            </div>
+                            <div class="text-sm text-muted-foreground" data-mock="true">
+                                ICD-10: K80.20 • Supports: RUQ pain, Murphy's sign positive, fever
+                            </div>
+                        </div>
+                        
+                        <div class="p-4 border border-border rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="font-medium text-foreground" data-mock="true">Peptic Ulcer Disease</div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-sm text-warning">Medium probability</span>
+                                    <input type="radio" name="primaryDiagnosis" class="text-primary">
+                                </div>
+                            </div>
+                            <div class="text-sm text-muted-foreground" data-mock="true">
+                                ICD-10: K27.9 • Supports: Epigastric pain • Against: Location, timing
+                            </div>
+                        </div>
+                        
+                        <div class="p-4 border border-border rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="font-medium text-foreground" data-mock="true">Myocardial Infarction</div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-sm text-destructive">Low probability</span>
+                                    <input type="radio" name="primaryDiagnosis" class="text-primary">
+                                </div>
+                            </div>
+                            <div class="text-sm text-muted-foreground" data-mock="true">
+                                ICD-10: I21.9 • Against: Normal troponin, Normal ECG, atypical location
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Diagnosis Justification -->
+                <div>
+                    <h3 class="font-medium text-foreground mb-3">Clinical Reasoning</h3>
+                    <textarea 
+                        class="w-full p-3 border border-input rounded-lg bg-background text-foreground resize-none h-24 text-sm focus:outline-none focus:ring-2 focus:ring-ring" 
+                        placeholder="Explain your diagnostic reasoning, including supporting and opposing evidence..."
+                        data-implementation="Should store reasoning for review and scoring"
+                    ></textarea>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex space-x-3 pt-4 border-t border-border">
+                    <button class="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors" data-event="click:submitDiagnosis">
+                        Submit Diagnosis
+                    </button>
+                    <button class="px-4 py-2 border border-border text-foreground rounded-md hover:bg-accent transition-colors" data-event="click:saveDraft">
+                        Save Draft
+                    </button>
+                    <button class="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors" data-event="click:getDiagnosisHelp">
+                        Get Hints
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: DiagnosisModal -->
+
+    <script>
+    (function() {
+        // TODO: Implement OpenAI integration for realistic patient responses
+        // TODO: Implement test result simulation with realistic timing
+        // TODO: Implement scoring algorithm for OSCE performance
+        // TODO: Implement session recording and playback functionality
+        // TODO: Implement case library management
+        
+        // Mock interaction handlers for demonstration
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('[data-event]');
+            if (!target) return;
+            
+            const event = target.getAttribute('data-event');
+            console.log('Event triggered:', event);
+            
+            // Handle modal toggles
+            if (event === 'click:orderTests') {
+                document.getElementById('testOrderingModal').classList.remove('hidden');
+                document.getElementById('testOrderingModal').classList.add('flex');
+            }
+            if (event === 'click:closeTestModal') {
+                document.getElementById('testOrderingModal').classList.add('hidden');
+                document.getElementById('testOrderingModal').classList.remove('flex');
+            }
+            if (event === 'click:makeDiagnosis') {
+                document.getElementById('diagnosisModal').classList.remove('hidden');
+                document.getElementById('diagnosisModal').classList.add('flex');
+            }
+            if (event === 'click:closeDiagnosisModal') {
+                document.getElementById('diagnosisModal').classList.add('hidden');
+                document.getElementById('diagnosisModal').classList.remove('flex');
+            }
+        });
+        
+        // Timer simulation
+        let timeRemaining = 15 * 60 + 30; // 15:30 in seconds
+        const timerElement = document.querySelector('.font-mono');
+        
+        function updateTimer() {
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            if (timerElement) {
+                timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+            timeRemaining--;
+            if (timeRemaining < 0) timeRemaining = 0;
+        }
+        
+        setInterval(updateTimer, 1000);
+        
+        // Chat input handling
+        const chatInput = document.querySelector('input[placeholder*="Ask the patient"]');
+        if (chatInput) {
+            chatInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    // TODO: Send message to AI patient via OpenAI API
+                    console.log('Sending message:', this.value);
+                    this.value = '';
+                }
+            });
+        }
+    })();
+    </script>
+</body>
+</html>
